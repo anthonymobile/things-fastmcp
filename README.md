@@ -11,7 +11,7 @@ This server leverages the [Things.py](https://github.com/thingsapi/things.py) li
 - **Comprehensive logging** with structured JSON output
 - **AppleScript bridge** for operations that fail with URL schemes
 - **Rate limiting** to prevent overwhelming the Things app
-- **Extensive test suite** for reliability 
+- **Test suite** that runs without Things 3 (SDK in-process client, mocked `things-py`)
 
 ## Why Things MCP?
 
@@ -32,115 +32,63 @@ This MCP server unlocks the power of AI for your task management:
 - Detailed item information including checklists
 - Support for nested data (projects within areas, todos within projects)
 
-## Installation Options
+## Installation
 
-There are multiple ways to install and use the Things MCP server:
+This fork targets the **MCP Python SDK 2.x** (`mcp>=2,<3`) and is installed from
+source into a local virtualenv that Claude Desktop launches directly.
 
-### Option 1: Install from PyPI (Recommended)
-
-#### Prerequisites
-* Python 3.12+
+### Prerequisites
+* macOS with Things 3 ("Enable Things URLs" turned on in Things → Settings → General)
+* Python 3.12 and [uv](https://docs.astral.sh/uv/)
 * Claude Desktop
-* Things 3 ("Enable Things URLs" must be turned on in Settings -> General)
-* Things Authentication Token (required for URL scheme operations)
+* Your Things authentication token (Things → Settings → General → Enable Things URLs → Manage)
 
-#### Installation
-
-```bash
-pip install things-mcp
-```
-
-Or using uv (recommended):
+### Quick start
 
 ```bash
-uv pip install things-mcp
-```
-
-#### Running
-
-After installation, you can run the server directly:
-
-```bash
-things-mcp
-```
-
-### Option 2: Manual Installation
-
-#### Prerequisites
-* Python 3.12+
-* Claude Desktop
-* Things 3 ("Enable Things URLs" must be turned on in Settings -> General)
-
-#### Step 1: Install uv
-Install uv if you haven't already:
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-Restart your terminal afterwards.
-
-#### Step 2: Clone this repository
-```bash
-git clone https://github.com/hald/things-mcp
+git clone https://github.com/<you>/things-fastmcp things-mcp
 cd things-mcp
+./setup.sh
 ```
 
-#### Step 3: Set up Python environment and dependencies
-```bash
-uv venv
-uv pip install -r pyproject.toml
-```
+`setup.sh` will:
 
-### Step 4: Configure Things authentication token
-Run the configuration tool to set up your Things authentication token:
-```bash
-python configure_token.py
-```
-This will guide you through the process of configuring your Things authentication token, which is required for the MCP server to interact with your Things app.
+1. create `.venv` with uv (Python 3.12) and `pip install -e ".[dev]"`
+2. ask for your Things auth token and store it in `~/.things-mcp/config.json`
+   (skipped if one is already there; `--no-token` skips the prompt entirely)
+3. run a stdio handshake smoke test (`initialize` + `tools/list`) against the
+   installed `things-mcp` command
+4. print the Claude Desktop config block (also written to
+   `claude_desktop_snippet.json`, which is git-ignored)
 
-### Step 5: Configure Claude Desktop
-Edit the Claude Desktop configuration file:
-```bash
-code ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
+### Claude Desktop
 
-Add the Things server to the mcpServers key in the configuration file (be sure to update the path to the folder where you installed these files):
+Add the printed block to `~/Library/Application Support/Claude/claude_desktop_config.json`
+and restart Claude Desktop. It points straight at the console script in the
+venv, with no arguments:
+
 ```json
 {
-    "mcpServers": {
-        "things": {
-            "command": "uv",
-            "args": [
-                "--directory",
-                "/ABSOLUTE/PATH/TO/PARENT/FOLDER/things-mcp",
-                "run",
-                "things_server.py"
-            ]
-        }
+  "mcpServers": {
+    "things": {
+      "command": "/ABSOLUTE/PATH/TO/things-mcp/.venv/bin/things-mcp",
+      "args": []
     }
+  }
 }
 ```
 
-### Step 6: Configure Authentication Token
-The Things URL scheme requires an authentication token. You can find it in Things → Settings → General.
+### Authentication token
 
-Option 1: Set via configuration script
-```bash
-python configure_token.py
-```
+The Things URL scheme needs an auth token for create/update operations. Besides
+`setup.sh`, you can set it with:
 
-Option 2: Set via environment variable
 ```bash
-export THINGS_AUTH_TOKEN="your-token-here"
-```
-
-Option 3: Manually create config file
-```bash
+.venv/bin/python configure_token.py          # interactive
+# or
 mkdir -p ~/.things-mcp
 echo '{"things_auth_token": "your-token-here"}' > ~/.things-mcp/config.json
 ```
-
-### Step 7: Restart Claude Desktop
-Restart the Claude Desktop app to apply the changes.
 
 ### Sample Usage with Claude Desktop
 * "What's on my todo list today?"
@@ -180,13 +128,15 @@ Restart the Claude Desktop app to apply the changes.
 #### Time-based Operations
 - `get-recent` - Get recently created items
 
+#### Diagnostics
+- `get-cache-stats` - Cache hit/miss statistics for this server process
+
 #### Modification Operations
+(All require the Things auth token.)
 - `add-todo` - Create a new todo with full parameter support
 - `add-project` - Create a new project with tags and todos
 - `update-todo` - Update an existing todo
 - `update-project` - Update an existing project
-- `delete-todo` - Delete a todo (moves to trash)
-- `delete-project` - Delete a project (moves to trash)
 - `show-item` - Show a specific item or list in Things
 - `search-items` - Search for items in Things
 
@@ -249,12 +199,6 @@ Restart the Claude Desktop app to apply the changes.
 - `completed` (optional) - Mark as completed
 - `canceled` (optional) - Mark as canceled
 
-### delete-todo
-- `id` - ID of the todo to delete (moves to trash)
-
-### delete-project
-- `id` - ID of the project to delete (moves to trash)
-
 ### show-item
 - `id` - ID of item to show, or one of: inbox, today, upcoming, anytime, someday, logbook
 - `query` (optional) - Optional query to filter by
@@ -288,62 +232,36 @@ The Things MCP server requires an authentication token to interact with the Thin
 Run the included configuration tool to set up your token:
 
 ```bash
-python configure_token.py
+.venv/bin/python configure_token.py
 ```
 
 This interactive script will prompt you for your token and save it securely in your local configuration.
 
 ## Development
 
-This project uses `pyproject.toml` to manage dependencies and build configuration. It's built using the [Model Context Protocol](https://modelcontextprotocol.io), which allows Claude to securely access tools and data.
-
-### Implementation Options
-
-This project provides two different implementation approaches:
-
-1. **Standard MCP Server** (`things_server.py`) - The original implementation that uses the basic MCP server pattern.
-
-2. **FastMCP Server** (`things_fast_server.py`) - A modern implementation using the FastMCP pattern for cleaner, more maintainable code with decorator-based tool registration.
-
-### Development Workflow
-
-#### Setting up a development environment
+Built on the [MCP Python SDK 2.x](https://py.sdk.modelcontextprotocol.io/v2/)
+`MCPServer` API (the 2.x successor to `FastMCP`). The server lives in
+`src/things_mcp/fast_server.py`; `things_mcp.fast_server:run_things_mcp_server`
+is the `things-mcp` console-script entry point and runs the server over stdio.
 
 ```bash
-# Clone the repository
-git clone https://github.com/hald/things-mcp
-cd things-mcp
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e ".[dev]"
 
-# Set up a virtual environment with development dependencies
-uv venv
-uv pip install -e ".[dev]"  # Install in development mode with extra dependencies
+.venv/bin/python -m pytest                    # unit tests (no Things 3 needed)
+.venv/bin/python scripts/smoke_test.py        # stdio handshake + tools/list
+.venv/bin/mcp dev src/things_mcp/fast_server.py   # MCP Inspector
 ```
 
-#### Testing changes during development
+The tests use the SDK's in-process client (`mcp.Client(server)`) and mock
+`things-py`, so they run anywhere. Stdout is reserved for the stdio transport:
+all logging goes to stderr and to `~/.things-mcp/logs/`.
 
-Use the MCP development server to test changes:
+### Upstream
 
-```bash
-# Test the FastMCP implementation
-mcp dev things_fast_server.py
-
-# Or test the traditional implementation
-mcp dev things_server.py
-```
-
-#### Building the package for PyPI
-
-```bash
-python -m build
-```
-
-#### Publishing to PyPI
-
-```bash
-twine upload dist/*
-```
-
-Requires Python 3.12+.
+This is a fork of [excelsier/things-fastmcp](https://github.com/excelsier/things-fastmcp)
+(itself derived from [hald/things-mcp](https://github.com/hald/things-mcp)),
+which targets the 1.x SDK. See `CHANGELOG.md` for what changed in 2.0.0.
 
 ## Reliability Features
 
@@ -380,7 +298,7 @@ The server includes error handling for:
 
 ### Common Issues
 
-1. **Missing or invalid token**: Run `python configure_token.py` to set up your token
+1. **Missing or invalid token**: Run `.venv/bin/python configure_token.py` (or `./setup.sh`) to set up your token
 2. **Things app not running**: The server will attempt to launch Things automatically
 3. **URL scheme not enabled**: Check that "Enable Things URLs" is enabled in Things → Preferences → General
 4. **Operations failing**: Check the circuit breaker status and dead letter queue
