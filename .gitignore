@@ -182,3 +182,4 @@ set_token_directly.py
 logs/ 
 # Project tests live in tests/ (the catch-all patterns above are for stray dev scripts)
 !tests/test_*.py
+claude_desktop_snippet.json
