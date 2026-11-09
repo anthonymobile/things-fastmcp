@@ -1,7 +1,7 @@
 [project]
 name = "things3-enhanced-mcp"
-version = "1.0.0"
-description = "Enhanced FastMCP server for Things 3 app integration with Claude Desktop and Windsurf - featuring reliability improvements, caching, and AppleScript bridge"
+version = "2.0.0"
+description = "MCP server for the Things 3 task manager (macOS), built on the MCP Python SDK 2.x - with caching, retries and an AppleScript bridge"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT License"}
@@ -21,13 +21,12 @@ classifiers = [
     "Operating System :: MacOS"
 ]
 dependencies = [
-    "httpx>=0.28.1",
-    "mcp[cli]>=1.2.0",
+    "mcp[cli]>=2,<3",
     "things-py>=0.0.15",
 ]
 
 [project.scripts]
-things3-enhanced-mcp = "src.things_mcp.fast_server:run_things_mcp_server"
+things-mcp = "things_mcp.fast_server:run_things_mcp_server"
 
 [project.urls]
 "Homepage" = "https://github.com/excelsier/things-fastmcp"
@@ -47,8 +46,8 @@ include = [
     "README.md",
     "LICENSE",
     "pyproject.toml",
-    "things_fast_server.py",
-    "things_server.py"
+    "configure_token.py",
+    "tests",
 ]
 
 [tool.hatch.envs.default]
@@ -63,11 +62,17 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.23",
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
     "build>=0.10.0",
     "twine>=4.0.0"
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
 
 [tool.hatch.envs.default.scripts]
 test = "pytest {args:tests}"
