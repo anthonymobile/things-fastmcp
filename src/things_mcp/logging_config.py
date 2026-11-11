@@ -4,6 +4,7 @@ Enhanced logging configuration for Things MCP server.
 Provides structured logging with multiple outputs and log levels.
 """
 import logging
+import sys
 import logging.handlers
 import os
 import json
@@ -97,7 +98,7 @@ def setup_logging(
     root_logger.handlers.clear()
     
     # Console handler with simple formatting
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stderr)  # never stdout: reserved for stdio transport
     console_handler.setLevel(getattr(logging, console_level.upper()))
     console_format = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Things MCP Server implementation using the FastMCP pattern.
-This provides a more modern and maintainable approach to the Things integration.
+Things MCP Server built on the MCP Python SDK 2.x ``MCPServer`` API
+(formerly ``FastMCP`` in SDK 1.x).
+
+All logging goes to stderr and to files under ~/.things-mcp/logs/; nothing is
+ever written to stdout, which is reserved for the stdio transport.
 """
-import logging
-import asyncio
-import traceback
-from typing import Dict, Any, Optional, List, Union
+from typing import Optional, List
 import things
 
-from mcp.server.fastmcp import FastMCP
-import mcp.types as types
+from mcp.server.mcpserver import MCPServer
+
+from . import __version__
 
 # Import supporting modules
 from .formatters import format_todo, format_project, format_area, format_tag
@@ -29,11 +30,12 @@ from .cache import cached, invalidate_caches_for, get_cache_stats, CACHE_TTL
 setup_logging(console_level="INFO", file_level="DEBUG", structured_logs=True)
 logger = get_logger(__name__)
 
-# Create the FastMCP server
-mcp = FastMCP(
-    "Things", 
+# Create the MCP server (SDK 2.x: MCPServer replaces FastMCP; all arguments
+# after ``name`` must be passed by keyword).
+mcp = MCPServer(
+    "Things",
     description="Interact with the Things task management app",
-    version="0.1.1"
+    version=__version__,
 )
 
 # LIST VIEWS
@@ -614,8 +616,8 @@ def get_cache_statistics() -> str:
 - Total requests: {stats['total_requests']}"""
 
 # Main entry point
-def run_things_mcp_server():
-    """Run the Things MCP server"""
+def run_things_mcp_server() -> None:
+    """Run the Things MCP server over stdio (console-script entry point)."""
     # Check if Things app is available
     if not app_state.update_app_state():
         logger.warning("Things app is not running at startup. MCP will attempt to launch it when needed.")
@@ -630,8 +632,8 @@ def run_things_mcp_server():
     else:
         logger.info("Things app is running and ready for operations")
         
-    # Run the MCP server
-    mcp.run()
+    # Run the MCP server over stdio
+    mcp.run(transport="stdio")
 
 if __name__ == "__main__":
     run_things_mcp_server()
